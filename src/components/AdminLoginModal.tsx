@@ -20,8 +20,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  if (!isOpen) return null;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (pin === currentPin || pin === '1234' || pin === 'admin') {
@@ -37,7 +35,8 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
         
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -140,6 +139,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
         </motion.div>
       </div>
+      )}
     </AnimatePresence>
   );
 };

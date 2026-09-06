@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   X,
@@ -48,7 +48,17 @@ export const TrackingModal: React.FC<TrackingModalProps> = ({
   const [activeQuery, setActiveQuery] = useState(savedPhone || '');
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  // Sync state whenever modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const phone = getSavedCustomerPhone();
+      if (phone && !searchInput) {
+        setSearchInput(phone);
+        setActiveQuery(phone);
+      }
+      setConfirmCancelId(null);
+    }
+  }, [isOpen]);
 
   const myBookingIds = getMyBookingIds();
 
@@ -114,7 +124,8 @@ export const TrackingModal: React.FC<TrackingModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
         <motion.div
           initial={{ opacity: 0, scale: 0.96, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -385,6 +396,7 @@ export const TrackingModal: React.FC<TrackingModalProps> = ({
           </div>
         </motion.div>
       </div>
+      )}
     </AnimatePresence>
   );
 };
