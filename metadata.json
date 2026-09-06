@@ -1,0 +1,6 @@
+{
+  "name": "سیستم رزرواسیون آرایشگاه مردانه",
+  "description": "سامانه مدرن نوبت‌دهی آنلاین آرایشگاه مردانه همراه با تقویم هوشمند، پنل مدیریت پیشرفته، آمار و گزارش‌گیری اکسل",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

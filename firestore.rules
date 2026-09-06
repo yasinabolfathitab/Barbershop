@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Bookings collection
+    match /bookings/{bookingId} {
+      allow read: if true;
+      allow create: if isValidId(bookingId)
+        && request.resource.data.id is string
+        && request.resource.data.customerName is string && request.resource.data.customerName.size() <= 100
+        && request.resource.data.customerPhone is string && request.resource.data.customerPhone.size() <= 20
+        && request.resource.data.dateStr is string && request.resource.data.dateStr.size() <= 20
+        && request.resource.data.timeSlot is string && request.resource.data.timeSlot.size() <= 20
+        && request.resource.data.status in ['confirmed', 'completed', 'cancelled'];
+      allow update: if isValidId(bookingId)
+        && request.resource.data.status in ['confirmed', 'completed', 'cancelled'];
+      allow delete: if isValidId(bookingId);
+    }
+
+    // Settings collection
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isValidId(settingId);
+    }
+
+    // Blocked Slots collection
+    match /blockedSlots/{slotId} {
+      allow read: if true;
+      allow write: if isValidId(slotId);
+    }
+
+    // Notifications collection
+    match /notifications/{notifId} {
+      allow read: if true;
+      allow create, update, delete: if isValidId(notifId);
+    }
+
+    // Connection test document
+    match /test/{testId} {
+      allow read: if true;
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "Booking": {
+      "title": "Booking",
+      "description": "Barbershop customer appointment booking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 100 },
+        "customerPhone": { "type": "string", "maxLength": 20 },
+        "serviceId": { "type": "string", "maxLength": 50 },
+        "serviceTitle": { "type": "string", "maxLength": 100 },
+        "servicePrice": { "type": "number" },
+        "barberId": { "type": "string", "maxLength": 50 },
+        "barberName": { "type": "string", "maxLength": 100 },
+        "dateStr": { "type": "string", "maxLength": 20 },
+        "dateShamsi": { "type": "string", "maxLength": 50 },
+        "timeSlot": { "type": "string", "maxLength": 20 },
+        "status": { "type": "string", "enum": ["confirmed", "completed", "cancelled"] },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "cancelledBy": { "type": "string", "enum": ["customer", "admin"] }
+      },
+      "required": ["id", "customerName", "customerPhone", "serviceId", "serviceTitle", "barberId", "barberName", "dateStr", "timeSlot", "status", "createdAt"]
+    },
+    "ShopSettings": {
+      "title": "ShopSettings",
+      "description": "Barbershop configuration and settings",
+      "type": "object",
+      "properties": {
+        "shopName": { "type": "string", "maxLength": 100 },
+        "shopPhone": { "type": "string", "maxLength": 20 },
+        "address": { "type": "string", "maxLength": 300 },
+        "instagram": { "type": "string", "maxLength": 100 },
+        "openHour": { "type": "number" },
+        "closeHour": { "type": "number" },
+        "slotDurationMinutes": { "type": "number" },
+        "offDays": { "type": "array" },
+        "allowCancelHoursBefore": { "type": "number" },
+        "maxFutureDays": { "type": "number" },
+        "adminPin": { "type": "string", "maxLength": 20 },
+        "smsNotificationSimulated": { "type": "boolean" },
+        "announcement": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "BlockedSlot": {
+      "title": "BlockedSlot",
+      "description": "Manually blocked time slot",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "dateStr": { "type": "string", "maxLength": 20 },
+        "timeSlot": { "type": "string", "maxLength": 20 },
+        "barberId": { "type": "string", "maxLength": 50 },
+        "reason": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["id", "dateStr", "timeSlot"]
+    },
+    "AdminNotification": {
+      "title": "AdminNotification",
+      "description": "Notification for admin panel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 150 },
+        "message": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string", "maxLength": 50 },
+        "read": { "type": "boolean" },
+        "bookingId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "title", "message", "timestamp", "read"]
+    }
+  },
+  "firestore": {
+    "/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/Booking" },
+      "description": "Customer appointment bookings accessible in real-time by clients and admin"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/ShopSettings" },
+      "description": "Barbershop configuration document"
+    },
+    "/blockedSlots/{slotId}": {
+      "schema": { "$ref": "#/entities/BlockedSlot" },
+      "description": "Slots blocked by manager"
+    },
+    "/notifications/{notifId}": {
+      "schema": { "$ref": "#/entities/AdminNotification" },
+      "description": "Real-time alerts and notifications"
+    }
+  }
+}
