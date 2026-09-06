@@ -34,7 +34,47 @@ const STORAGE_KEYS = {
   SETTINGS: 'barber_settings_v6',
   BLOCKED: 'barber_blocked_slots_v6',
   NOTIFS: 'barber_notifications_v6',
+  MY_BOOKINGS: 'barber_my_booking_ids_v2',
+  MY_PHONE: 'barber_my_phone_v2',
 };
+
+// Device-level storage for customer booking privacy
+export function getMyBookingIds(): string[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.MY_BOOKINGS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveMyBookingId(id: string): void {
+  try {
+    const current = getMyBookingIds();
+    if (!current.includes(id)) {
+      const updated = [id, ...current];
+      localStorage.setItem(STORAGE_KEYS.MY_BOOKINGS, JSON.stringify(updated));
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+export function getSavedCustomerPhone(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.MY_PHONE) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function saveCustomerPhone(phone: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.MY_PHONE, phone.trim());
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 // BroadcastChannel for instant inter-tab communication
 let broadcastChannel: BroadcastChannel | null = null;
@@ -117,9 +157,27 @@ export function initFirestoreSync() {
   if (firestoreSyncInitialized || typeof window === 'undefined') return;
   firestoreSyncInitialized = true;
 
+  let isInitialSnapshot = true;
+
   // 1. Listen to Bookings in Real-Time (Phone <-> Laptop Cross-Device Sync)
   try {
     const bookingsCol = collection(db, 'bookings');
+
+    // Immediate fast pre-fetch
+    getDocs(bookingsCol).then((snap) => {
+      if (!snap.empty) {
+        const initialDocs: Booking[] = [];
+        snap.forEach((d) => initialDocs.push(d.data() as Booking));
+        initialDocs.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(initialDocs));
+        notifyListeners('bookings_synced', initialDocs);
+      }
+    }).catch(() => {
+      // offline mode fallback
+    });
+
     onSnapshot(
       bookingsCol,
       (snapshot) => {
@@ -134,17 +192,20 @@ export function initFirestoreSync() {
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
-        // Detect newly added bookings from other devices
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added') {
-            const addedBooking = change.doc.data() as Booking;
-            if (!locallyCreatedBookingIds.has(addedBooking.id)) {
-              // This is an incoming real-time booking from another device (e.g. Customer's phone -> Manager's laptop!)
-              notifyListeners('booking_created', addedBooking);
-              playNotificationSound('success');
+        // Detect newly added bookings from other devices after initial load
+        if (!isInitialSnapshot) {
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+              const addedBooking = change.doc.data() as Booking;
+              if (!locallyCreatedBookingIds.has(addedBooking.id)) {
+                // This is an incoming real-time booking from another device (e.g. Customer's phone -> Manager's laptop!)
+                notifyListeners('booking_created', addedBooking);
+                playNotificationSound('success');
+              }
             }
-          }
-        });
+          });
+        }
+        isInitialSnapshot = false;
 
         // Persist to local cache for instant zero-lag reads
         localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(firestoreBookings));
@@ -286,15 +347,17 @@ export async function clearAllBookings(): Promise<void> {
 export function isSlotBooked(
   dateStr: string,
   timeSlot: string,
-  barberId?: string
+  barberId?: string,
+  bookingsList?: Booking[]
 ): { booked: boolean; booking?: Booking } {
-  const all = getBookings();
+  const all = bookingsList || getBookings();
+  // If ANY confirmed booking exists for this exact date and time:
+  // (Locks the time slot completely for other customers)
   const matched = all.find(
     (b) =>
       b.dateStr === dateStr &&
       b.timeSlot === timeSlot &&
-      b.status === 'confirmed' &&
-      (!barberId || b.barberId === barberId)
+      b.status === 'confirmed'
   );
 
   return {
@@ -304,8 +367,13 @@ export function isSlotBooked(
 }
 
 // Check if slot is blocked by admin
-export function isSlotBlocked(dateStr: string, timeSlot: string, barberId?: string): boolean {
-  const blocked = getBlockedSlots();
+export function isSlotBlocked(
+  dateStr: string,
+  timeSlot: string,
+  barberId?: string,
+  blockedList?: BlockedSlot[]
+): boolean {
+  const blocked = blockedList || getBlockedSlots();
   return blocked.some(
     (s) =>
       s.dateStr === dateStr &&
@@ -324,11 +392,11 @@ export async function createBooking(data: {
   dateShamsi: string;
   timeSlot: string;
 }): Promise<{ success: boolean; booking?: Booking; error?: string }> {
-  // Check double-booking race condition
-  if (isSlotBooked(data.dateStr, data.timeSlot, data.barberId).booked) {
+  // Check double-booking race condition (locks the time slot for the salon)
+  if (isSlotBooked(data.dateStr, data.timeSlot).booked) {
     return {
       success: false,
-      error: 'متاسفانه این ساعت همین الان توسط مشتری دیگری رزرو شد. لطفا ساعت دیگری انتخاب کنید.',
+      error: 'متاسفانه این ساعت قبلاً توسط مشتری دیگری رزرو شده است. لطفاً ساعت دیگری را انتخاب فرمایید.',
     };
   }
 
@@ -348,9 +416,9 @@ export async function createBooking(data: {
     return { success: false, error: 'اطلاعات خدمات یا آرایشگر یافت نشد.' };
   }
 
-  // Generate readable booking code
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  const bookingId = `BRB-${randomSuffix}`;
+  // Generate unique readable booking code
+  const uniqueNum = Math.floor(1000 + Math.random() * 9000);
+  const bookingId = `BRB-${uniqueNum}`;
 
   const newBooking: Booking = {
     id: bookingId,
@@ -369,8 +437,10 @@ export async function createBooking(data: {
     createdAt: new Date().toISOString(),
   };
 
-  // Mark local creation to prevent local duplicate sound
+  // Mark local creation to prevent local duplicate sound and store for privacy tracking
   locallyCreatedBookingIds.add(bookingId);
+  saveMyBookingId(bookingId);
+  saveCustomerPhone(data.customerPhone);
 
   // 1. Immediately update local state for zero-latency client feedback
   const currentBookings = getBookings();

@@ -93,8 +93,8 @@ export const CustomerBooking: React.FC<CustomerBookingProps> = ({
   // Check slots availability for selected day and barber
   const slotStatuses = useMemo(() => {
     return allTimeSlots.map((time) => {
-      const bookedInfo = isSlotBooked(selectedDay.dateStr, time, selectedBarberId);
-      const blocked = isSlotBlocked(selectedDay.dateStr, time, selectedBarberId);
+      const bookedInfo = isSlotBooked(selectedDay.dateStr, time, selectedBarberId, bookings);
+      const blocked = isSlotBlocked(selectedDay.dateStr, time, selectedBarberId, blockedSlots);
       const isLocked = bookedInfo.booked || blocked;
 
       return {
@@ -128,6 +128,12 @@ export const CustomerBooking: React.FC<CustomerBookingProps> = ({
     } else if (step === 3) {
       if (!selectedTimeSlot) {
         setValidationError('لطفاً یک ساعت آزاد را انتخاب کنید.');
+        return;
+      }
+      const bookedInfo = isSlotBooked(selectedDay.dateStr, selectedTimeSlot, selectedBarberId, bookings);
+      const blocked = isSlotBlocked(selectedDay.dateStr, selectedTimeSlot, selectedBarberId, blockedSlots);
+      if (bookedInfo.booked || blocked) {
+        setValidationError('متاسفانه این ساعت قبلاً توسط مشتری دیگری رزرو شده است. لطفاً ساعت دیگری را انتخاب فرمایید.');
         return;
       }
       setValidationError('');
