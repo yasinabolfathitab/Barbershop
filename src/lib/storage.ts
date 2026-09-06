@@ -153,13 +153,13 @@ export function initFirestoreSync() {
       (error) => {
         if (isPermissionError(error)) {
           handleFirestoreError(error, OperationType.GET, 'bookings');
-        } else {
-          console.warn('Firestore bookings sync notice:', error);
         }
       }
     );
   } catch (err) {
-    console.error('Error binding Firestore bookings sync:', err);
+    if (isPermissionError(err)) {
+      handleFirestoreError(err, OperationType.GET, 'bookings');
+    }
   }
 
   // 2. Listen to Blocked Slots in Real-Time
@@ -178,13 +178,13 @@ export function initFirestoreSync() {
       (error) => {
         if (isPermissionError(error)) {
           handleFirestoreError(error, OperationType.GET, 'blockedSlots');
-        } else {
-          console.warn('Firestore blocked slots sync notice:', error);
         }
       }
     );
   } catch (err) {
-    console.error('Error binding Firestore blocked slots sync:', err);
+    if (isPermissionError(err)) {
+      handleFirestoreError(err, OperationType.GET, 'blockedSlots');
+    }
   }
 
   // 3. Listen to Shop Settings in Real-Time
@@ -202,13 +202,13 @@ export function initFirestoreSync() {
       (error) => {
         if (isPermissionError(error)) {
           handleFirestoreError(error, OperationType.GET, 'settings/general');
-        } else {
-          console.warn('Firestore settings sync notice:', error);
         }
       }
     );
   } catch (err) {
-    console.error('Error binding Firestore settings sync:', err);
+    if (isPermissionError(err)) {
+      handleFirestoreError(err, OperationType.GET, 'settings/general');
+    }
   }
 
   // 4. Listen to Notifications in Real-Time
@@ -228,19 +228,21 @@ export function initFirestoreSync() {
       (error) => {
         if (isPermissionError(error)) {
           handleFirestoreError(error, OperationType.GET, 'notifications');
-        } else {
-          console.warn('Firestore notifications sync notice:', error);
         }
       }
     );
   } catch (err) {
-    console.error('Error binding Firestore notifications sync:', err);
+    if (isPermissionError(err)) {
+      handleFirestoreError(err, OperationType.GET, 'notifications');
+    }
   }
 }
 
-// Automatically start cloud synchronization
+// Automatically start cloud synchronization smoothly after initial load
 if (typeof window !== 'undefined') {
-  initFirestoreSync();
+  setTimeout(() => {
+    initFirestoreSync();
+  }, 300);
 }
 
 // --- Bookings API ---

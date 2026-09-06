@@ -6,5 +6,6 @@ coverage/
 *.log
 bun.lock
 bun.lockb
+package-lock.json
 .env*
 !.env.example

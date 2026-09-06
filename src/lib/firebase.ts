@@ -1,7 +1,10 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, setLogLevel } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
+
+// Silence non-fatal internal SDK connection logs in sandbox/iframe environments
+setLogLevel('silent');
 
 export enum OperationType {
   CREATE = 'create',
@@ -53,27 +56,15 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 export const app = initializeApp(firebaseConfig);
+
+try {
+  initializeFirestore(app, {
+    experimentalAutoDetectLongPolling: true,
+  }, firebaseConfig.firestoreDatabaseId);
+} catch {
+  // Instance already initialized or default config preserved
+}
+
 /* CRITICAL: The app will break without this line */
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
-
-// Test Firestore connection on initial boot
-export async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error: any) {
-    if (
-      error?.code === 'unavailable' ||
-      error?.message?.includes('the client is offline') ||
-      error?.message?.includes('unavailable')
-    ) {
-      console.info('Firestore operating with offline persistence until cloud connection connects.');
-    } else if (isPermissionError(error)) {
-      handleFirestoreError(error, OperationType.GET, 'test/connection');
-    } else {
-      console.info('Firestore connection notice:', error?.message || error);
-    }
-  }
-}
-
-testConnection().catch(() => {});
