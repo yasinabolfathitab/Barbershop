@@ -22,14 +22,15 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin === currentPin || pin === '1234' || pin === 'admin') {
+    const validPin = currentPin || '1234';
+    if (pin === validPin) {
       setError(false);
       setErrorMessage('');
       setPin('');
       onLoginSuccess();
     } else {
       setError(true);
-      setErrorMessage('رمز عبور وارد شده اشتباه است. (رمز پیش‌فرض: 1234)');
+      setErrorMessage('رمز عبور وارد شده نادرست است.');
     }
   };
 
@@ -89,7 +90,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                     setPin(e.target.value);
                     if (error) setError(false);
                   }}
-                  placeholder="رمز عبور (پیش‌فرض: 1234)"
+                  placeholder="رمز عبور مدیریت"
                   autoFocus
                   dir="ltr"
                   className={`w-full pr-10 pl-11 py-3 rounded-xl bg-slate-900/90 border text-center text-white tracking-widest text-base focus:outline-none transition-all ${
@@ -101,7 +102,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowPin(!showPin)}
-                  className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 hover:text-slate-300"
+                  className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 hover:text-slate-300 cursor-pointer"
                 >
                   {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -116,13 +117,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                   {errorMessage}
                 </motion.p>
               )}
-            </div>
-
-            {/* Quick Demo Hint */}
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 text-center">
-              <span className="text-[11px] text-amber-300">
-                💡 رمز عبور پیش‌فرض جهت تست: <strong className="font-mono text-amber-200">1234</strong>
-              </span>
             </div>
 
             {/* Submit Button */}
