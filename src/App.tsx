@@ -297,7 +297,7 @@ export default function App() {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-6 left-6 z-50 max-w-sm glass-panel rounded-2xl p-4 border border-amber-500/40 shadow-2xl shadow-amber-500/20 flex items-start gap-3"
+            className="fixed bottom-4 sm:bottom-6 left-4 right-4 sm:right-auto sm:left-6 sm:max-w-sm z-50 glass-panel rounded-2xl p-4 border border-amber-500/40 shadow-2xl shadow-amber-500/20 flex items-start gap-3"
             id="live-toast-notification"
           >
             <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
@@ -309,7 +309,8 @@ export default function App() {
             </div>
             <button
               onClick={() => setLiveToast(null)}
-              className="text-slate-400 hover:text-white p-1"
+              className="text-slate-400 hover:text-white p-1 cursor-pointer transition-colors"
+              title="بستن اعلان"
             >
               <X className="w-3.5 h-3.5" />
             </button>

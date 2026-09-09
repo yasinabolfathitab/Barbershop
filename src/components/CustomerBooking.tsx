@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Scissors,
   Sparkles,
@@ -60,6 +60,13 @@ export const CustomerBooking: React.FC<CustomerBookingProps> = ({
   const [selectedServiceId, setSelectedServiceId] = useState<string>(services[0]?.id || '');
   const [selectedBarberId, setSelectedBarberId] = useState<string>(barbers[0]?.id || '');
   const [selectedDay, setSelectedDay] = useState<DayOption>(() => getUpcomingDays(14)[0]);
+
+  // Ensure selectedBarberId remains valid if barbers are modified or deleted in admin
+  useEffect(() => {
+    if (barbers.length > 0 && !barbers.some((b) => b.id === selectedBarberId)) {
+      setSelectedBarberId(barbers[0].id);
+    }
+  }, [barbers, selectedBarberId]);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
   
   // Customer info inputs
@@ -76,6 +83,24 @@ export const CustomerBooking: React.FC<CustomerBookingProps> = ({
   // Service filter category
   const [activeCategory, setActiveCategory] = useState<'all' | 'hair' | 'beard' | 'vip' | 'care'>('all');
 
+  // Scroll to top of the page whenever step changes so every stage loads from the top
+  useEffect(() => {
+    const scrollToTop = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      const bookingEl = document.getElementById('booking-container');
+      if (bookingEl) {
+        bookingEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+
+    // Immediate scroll
+    scrollToTop();
+
+    // Secondary scroll to handle height recalculation after DOM/motion updates
+    const timer = setTimeout(scrollToTop, 60);
+    return () => clearTimeout(timer);
+  }, [step]);
+
   const upcomingDays = useMemo(() => getUpcomingDays(14), []);
   const allTimeSlots = useMemo(
     () => generateTimeSlots(settings.openHour, settings.closeHour, settings.slotDurationMinutes),
@@ -83,7 +108,7 @@ export const CustomerBooking: React.FC<CustomerBookingProps> = ({
   );
 
   const selectedService = services.find((s) => s.id === selectedServiceId);
-  const selectedBarber = barbers.find((b) => b.id === selectedBarberId);
+  const selectedBarber = barbers.find((b) => b.id === selectedBarberId) || barbers[0];
 
   // Filtered services
   const filteredServices = services.filter((s) =>
@@ -245,7 +270,20 @@ export const CustomerBooking: React.FC<CustomerBookingProps> = ({
                 { s: 3, label: 'زمان' },
                 { s: 4, label: 'مشخصات' },
               ].map((item) => (
-                <div key={item.s} className="relative z-10 flex flex-col items-center gap-1.5">
+                <button
+                  key={item.s}
+                  type="button"
+                  disabled={step < item.s}
+                  onClick={() => {
+                    if (step > item.s) {
+                      setValidationError('');
+                      setStep(item.s);
+                    }
+                  }}
+                  className={`relative z-10 flex flex-col items-center gap-1.5 transition-transform ${
+                    step > item.s ? 'cursor-pointer hover:scale-105' : 'cursor-default'
+                  }`}
+                >
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                       step === item.s
@@ -260,7 +298,7 @@ export const CustomerBooking: React.FC<CustomerBookingProps> = ({
                   <span className={`text-[11px] font-medium ${step >= item.s ? 'text-amber-300' : 'text-slate-500'}`}>
                     {item.label}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -560,7 +598,9 @@ export const CustomerBooking: React.FC<CustomerBookingProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="text-sm font-bold text-white flex items-center gap-2">
                 <Clock className="w-4 h-4 text-amber-400" />
-                <span>ساعت‌های آزاد در {selectedDay.dayName} ({selectedDay.dayOfMonth} {selectedDay.monthName})</span>
+                <span>
+                  ساعت‌های نوبت‌دهی برای <strong className="text-amber-400 font-bold">{selectedBarber?.name}</strong> در {selectedDay.dayName} ({selectedDay.dayOfMonth} {selectedDay.monthName})
+                </span>
               </label>
               <div className="flex items-center gap-4 text-xs">
                 <span className="flex items-center gap-1.5 text-emerald-400">
@@ -578,7 +618,7 @@ export const CustomerBooking: React.FC<CustomerBookingProps> = ({
             <div className="p-3 rounded-xl bg-slate-900/60 border border-white/5 text-xs text-slate-400 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
               <span>
-                سیستم به‌محض انتخاب و ثبت شما این ساعت را به صورت آنی قفل می‌کند تا فرد دیگری نتواند آن را رزرو کند.
+                ساعت‌ها به صورت اختصاصی برای هر آرایشگر محاسبه می‌شوند؛ با رزرو شما این تایم فقط برای {selectedBarber?.name} قفل خواهد شد.
               </span>
             </div>
 

@@ -272,7 +272,33 @@ export function initFirestoreSync() {
     }
   }
 
-  // 4. Listen to Notifications in Real-Time
+  // 4. Listen to Barbers in Real-Time
+  try {
+    const barbersDoc = doc(db, 'settings', 'barbers');
+    onSnapshot(
+      barbersDoc,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (Array.isArray(data?.list) && data.list.length > 0) {
+            localStorage.setItem(STORAGE_KEYS.BARBERS, JSON.stringify(data.list));
+            notifyListeners('barbers_updated', data.list);
+          }
+        }
+      },
+      (error) => {
+        if (isPermissionError(error)) {
+          handleFirestoreError(error, OperationType.GET, 'settings/barbers');
+        }
+      }
+    );
+  } catch (err) {
+    if (isPermissionError(err)) {
+      handleFirestoreError(err, OperationType.GET, 'settings/barbers');
+    }
+  }
+
+  // 5. Listen to Notifications in Real-Time
   try {
     const notifsCol = collection(db, 'notifications');
     onSnapshot(
@@ -343,7 +369,7 @@ export async function clearAllBookings(): Promise<void> {
   }
 }
 
-// Check if a specific date + time slot is already locked / reserved
+// Check if a specific date + time slot is already locked / reserved for a specific barber (or any barber if barberId not specified)
 export function isSlotBooked(
   dateStr: string,
   timeSlot: string,
@@ -351,13 +377,12 @@ export function isSlotBooked(
   bookingsList?: Booking[]
 ): { booked: boolean; booking?: Booking } {
   const all = bookingsList || getBookings();
-  // If ANY confirmed booking exists for this exact date and time:
-  // (Locks the time slot completely for other customers)
   const matched = all.find(
     (b) =>
       b.dateStr === dateStr &&
       b.timeSlot === timeSlot &&
-      b.status === 'confirmed'
+      b.status === 'confirmed' &&
+      (!barberId || b.barberId === barberId)
   );
 
   return {
@@ -392,18 +417,18 @@ export async function createBooking(data: {
   dateShamsi: string;
   timeSlot: string;
 }): Promise<{ success: boolean; booking?: Booking; error?: string }> {
-  // Check double-booking race condition (locks the time slot for the salon)
-  if (isSlotBooked(data.dateStr, data.timeSlot).booked) {
+  // Check double-booking race condition (locks the time slot specifically for this barber)
+  if (isSlotBooked(data.dateStr, data.timeSlot, data.barberId).booked) {
     return {
       success: false,
-      error: 'متاسفانه این ساعت قبلاً توسط مشتری دیگری رزرو شده است. لطفاً ساعت دیگری را انتخاب فرمایید.',
+      error: 'متاسفانه این ساعت قبلاً برای این آرایشگر رزرو شده است. لطفاً ساعت دیگری را انتخاب فرمایید.',
     };
   }
 
   if (isSlotBlocked(data.dateStr, data.timeSlot, data.barberId)) {
     return {
       success: false,
-      error: 'این ساعت توسط مدیریت سالن غیرفعال یا رزرو تلفنی شده است.',
+      error: 'این ساعت برای این آرایشگر توسط مدیریت سالن غیرفعال یا رزرو شده است.',
     };
   }
 
@@ -585,9 +610,15 @@ export function getBarbers(): Barber[] {
   }
 }
 
-export function saveBarbers(barbers: Barber[]): void {
+export async function saveBarbers(barbers: Barber[]): Promise<void> {
   localStorage.setItem(STORAGE_KEYS.BARBERS, JSON.stringify(barbers));
   broadcast('barbers_updated', barbers);
+
+  try {
+    await setDoc(doc(db, 'settings', 'barbers'), { list: barbers });
+  } catch (err) {
+    console.error('Error saving barbers in Firestore:', err);
+  }
 }
 
 // --- Settings API ---
@@ -636,7 +667,7 @@ export async function toggleBlockSlot(
 ): Promise<void> {
   const current = getBlockedSlots();
   const existingIndex = current.findIndex(
-    (s) => s.dateStr === dateStr && s.timeSlot === timeSlot && s.barberId === barberId
+    (s) => s.dateStr === dateStr && s.timeSlot === timeSlot && (barberId ? s.barberId === barberId : !s.barberId)
   );
 
   let updated: BlockedSlot[];
